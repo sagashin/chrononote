@@ -1,0 +1,6 @@
+{
+  "name": "ChronoNote — パーソナル記録＆AIトレンド分析",
+  "description": "思いついたことや情報を1秒でサッと記録し、AIが自動で分野・タグ分類、関心トレンド分析、関連ニュース収集を行うパーソナルナレッジ＆トレンド分析アプリ。",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
