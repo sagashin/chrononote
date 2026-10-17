@@ -121,6 +121,114 @@ export interface RelatedNewsItem {
   url?: string;
 }
 
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const MAX_NOTE_LENGTH = 3000;
+
+export function getCurrentJSTDateParts(date: Date = new Date()): {
+  yearMonth: string;
+  dateStr: string;
+  timeStr: string;
+  fullDateTime: string;
+} {
+  const formatter = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '00';
+  const year = getPart('year');
+  const month = getPart('month');
+  const day = getPart('day');
+  const hour = getPart('hour') === '24' ? '00' : getPart('hour');
+  const minute = getPart('minute');
+
+  const yearMonth = `${year}-${month}`;
+  const dateStr = `${year}-${month}-${day}`;
+  const timeStr = `${hour}:${minute}`;
+  return {
+    yearMonth,
+    dateStr,
+    timeStr,
+    fullDateTime: `${dateStr} ${timeStr}`,
+  };
+}
+
+export function getPreviousYearMonth(yearMonth: string): string {
+  const [y, m] = yearMonth.split('-').map(Number);
+  if (!y || !m) return yearMonth;
+  const prevDate = new Date(y, m - 2, 1);
+  return `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export function getRecentYearMonths(baseYearMonth: string, count = 5): string[] {
+  const [y, m] = baseYearMonth.split('-').map(Number);
+  if (!y || !m) return [baseYearMonth];
+  const result: string[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(y, m - 1 - i, 1);
+    result.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return result;
+}
+
+const VALID_CATEGORY_IDS: CategoryId[] = [
+  '仕事', 'アイデア', '買い物', '健康', '学習', '趣味', 'その他'
+];
+
+export function sanitizeNoteEntries(raw: unknown): NoteEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const validEntries: NoteEntry[] = [];
+
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const obj = item as Record<string, unknown>;
+    const content = typeof obj.content === 'string' ? obj.content.trim() : '';
+    if (!content) continue;
+
+    const category: CategoryId = VALID_CATEGORY_IDS.includes(obj.category as CategoryId)
+      ? (obj.category as CategoryId)
+      : 'その他';
+
+    const tags = Array.isArray(obj.tags)
+      ? obj.tags.map((t) => String(t).replace(/^[#＃]/, '').trim()).filter(Boolean).slice(0, 8)
+      : ['クイックメモ'];
+
+    const nowParts = getCurrentJSTDateParts();
+    const dateStr =
+      typeof obj.dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(obj.dateStr)
+        ? obj.dateStr
+        : nowParts.dateStr;
+    const yearMonth =
+      typeof obj.yearMonth === 'string' && /^\d{4}-\d{2}$/.test(obj.yearMonth)
+        ? obj.yearMonth
+        : dateStr.slice(0, 7);
+    const timeStr =
+      typeof obj.timeStr === 'string' && /^\d{2}:\d{2}$/.test(obj.timeStr)
+        ? obj.timeStr
+        : nowParts.timeStr;
+
+    validEntries.push({
+      id: typeof obj.id === 'string' && obj.id ? obj.id : `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      content: content.slice(0, MAX_NOTE_LENGTH),
+      category,
+      tags,
+      createdAt: typeof obj.createdAt === 'string' ? obj.createdAt : new Date().toISOString(),
+      yearMonth,
+      dateStr,
+      timeStr,
+      aiNote: typeof obj.aiNote === 'string' ? obj.aiNote : undefined,
+      isPinned: Boolean(obj.isPinned),
+      aiProcessed: Boolean(obj.aiProcessed),
+    });
+  }
+  return validEntries;
+}
+
 /**
  * Instant client-side heuristic inference for 0-latency feedback while typing or on instant submit.
  */

@@ -20,6 +20,8 @@ import {
   INITIAL_NOTES,
   INITIAL_INSIGHTS,
   INITIAL_NEWS,
+  getCurrentJSTDateParts,
+  sanitizeNoteEntries,
   inferCategoryAndTagsLocal,
 } from '@/lib/chrononote-data';
 import QuickCaptureBar from '@/components/QuickCaptureBar';
@@ -220,14 +222,14 @@ export default function ChronoNotePage() {
     [notes, showToast]
   );
 
-  // Trigger real Gemini analysis when user clicks the "AIインサイト" tab
+  // Trigger real Gemini analysis when user clicks the "AIインサイト" tab (only auto-fetch on first click)
   const handleOpenInsightsTab = () => {
     setActiveNavTab('insights');
     const el = document.getElementById('insights-section');
     if (el) {
       el.scrollIntoView({behavior: 'smooth'});
     }
-    if (!isRefreshingInsights) {
+    if (!hasFetchedLiveAI && !isRefreshingInsights && notes.length > 0) {
       handleRefreshInsights();
     }
   };
@@ -260,10 +262,7 @@ export default function ChronoNotePage() {
     manualCategoryOverride: boolean;
   }) => {
     const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const yearMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
-    const dateStr = `${yearMonth}-${pad(now.getDate())}`;
-    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const {yearMonth, dateStr, timeStr} = getCurrentJSTDateParts(now);
     const id = `note-${Date.now()}`;
 
     const newEntry: NoteEntry = {
@@ -335,9 +334,13 @@ export default function ChronoNotePage() {
   const handleUpdateNote = (
     id: string,
     newContent: string,
-    newCategory: CategoryId
+    newCategory: CategoryId,
+    newTags: string[]
   ) => {
-    const reInferred = inferCategoryAndTagsLocal(newContent);
+    const finalTags =
+      newTags.length > 0
+        ? newTags
+        : inferCategoryAndTagsLocal(newContent).tags;
     setNotes((prev) =>
       prev.map((n) =>
         n.id === id
@@ -345,10 +348,7 @@ export default function ChronoNotePage() {
               ...n,
               content: newContent,
               category: newCategory,
-              tags: Array.from(new Set([...n.tags, ...reInferred.tags])).slice(
-                0,
-                5
-              ),
+              tags: finalTags,
             }
           : n
       )
@@ -433,14 +433,15 @@ export default function ChronoNotePage() {
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(String(event.target?.result || '{}'));
-        const importedNotes = Array.isArray(parsed)
+        const rawNotes = Array.isArray(parsed)
           ? parsed
           : Array.isArray(parsed.notes)
           ? parsed.notes
           : null;
-        if (importedNotes && importedNotes.length > 0) {
-          setNotes(importedNotes);
-          showToast(`${importedNotes.length}件の記録をインポートしました`);
+        const sanitized = sanitizeNoteEntries(rawNotes);
+        if (sanitized.length > 0) {
+          setNotes(sanitized);
+          showToast(`${sanitized.length}件の記録をインポートしました`);
         } else {
           showToast('有効な記録データが見つかりませんでした');
         }
@@ -662,7 +663,7 @@ export default function ChronoNotePage() {
                 <button
                   type="button"
                   onClick={() => setConfirmResetOpen(false)}
-                  className="px-2 py-0.5 text-xs text-slate-400 hover:text-slate-200 cursor-pointer"
+                  className="px-2 py-0.5 text-xs text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"
                 >
                   取消
                 </button>
@@ -696,7 +697,7 @@ export default function ChronoNotePage() {
                 <button
                   type="button"
                   onClick={() => setConfirmClearOpen(false)}
-                  className="px-2 py-0.5 text-xs text-slate-400 hover:text-slate-200 cursor-pointer"
+                  className="px-2 py-0.5 text-xs text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"
                 >
                   取消
                 </button>
@@ -732,7 +733,7 @@ export default function ChronoNotePage() {
             <button
               type="button"
               onClick={() => setStatusMessage(null)}
-              className="text-xs text-slate-400 hover:text-slate-200 cursor-pointer"
+              className="text-xs text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"
             >
               閉じる
             </button>
@@ -746,53 +747,73 @@ export default function ChronoNotePage() {
           isAiClassifying={isAiClassifying}
         />
 
-        {/* Section 2: Analytics Dashboard (Category Breakdown & Monthly Trend Charts) */}
-        <div id="dashboard-section" className="scroll-mt-20">
-          <AnalyticsDashboard
-            notes={notes}
-            selectedCategory={selectedCategory}
-            selectedYearMonth={selectedYearMonth}
-            onSelectCategory={setSelectedCategory}
-            onSelectYearMonth={setSelectedYearMonth}
-          />
-        </div>
-
-        {/* Section 3 & 4: Main 2-Column Workspace (Left: Filterable Records Timeline/Calendar, Right: AI Insights & Related News) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <div id="records-section" className="lg:col-span-7 scroll-mt-20">
-            <RecordsTimelineAndCalendar
-              notes={notes}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-              selectedYearMonth={selectedYearMonth}
-              onSelectYearMonth={setSelectedYearMonth}
-              searchQuery={searchQuery}
-              onSearchQueryChange={setSearchQuery}
-              onDeleteNote={handleDeleteNote}
-              onTogglePin={handleTogglePin}
-              onUpdateNote={handleUpdateNote}
-              onFocusQuickInput={focusQuickInput}
-            />
+        {!isHydrated ? (
+          /* Loading Skeleton while hydrating LocalStorage to prevent Flash of Default Data */
+          <div className="space-y-8" aria-busy="true" aria-label="データ読み込み中">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="h-20 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-4 animate-pulse"
+                />
+              ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-7 h-96 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 animate-pulse" />
+              <div className="lg:col-span-5 h-96 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 animate-pulse" />
+            </div>
           </div>
+        ) : (
+          <>
+            {/* Section 2: Analytics Dashboard (Category Breakdown & Monthly Trend Charts) */}
+            <div id="dashboard-section" className="scroll-mt-20">
+              <AnalyticsDashboard
+                notes={notes}
+                selectedCategory={selectedCategory}
+                selectedYearMonth={selectedYearMonth}
+                onSelectCategory={setSelectedCategory}
+                onSelectYearMonth={setSelectedYearMonth}
+              />
+            </div>
 
-          <div id="insights-section" className="lg:col-span-5 scroll-mt-20">
-            <AIInsightsAndNewsPanel
-              notes={notes}
-              insights={insights}
-              news={news}
-              groundingLinks={groundingLinks}
-              groundedSummaryText={groundedSummaryText}
-              activeQueryTopic={activeQueryTopic}
-              isRefreshingInsights={isRefreshingInsights}
-              insightsError={insightsError}
-              hasFetchedLiveAI={hasFetchedLiveAI}
-              onRefreshInsights={(topic) => handleRefreshInsights(topic)}
-              onSelectTopicFilter={(topic) => setSearchQuery(topic)}
-            />
-          </div>
-        </div>
+            {/* Section 3 & 4: Main 2-Column Workspace (Left: Filterable Records Timeline/Calendar, Right: AI Insights & Related News) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              <div id="records-section" className="lg:col-span-7 scroll-mt-20">
+                <RecordsTimelineAndCalendar
+                  notes={notes}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                  selectedCategory={selectedCategory}
+                  onSelectCategory={setSelectedCategory}
+                  selectedYearMonth={selectedYearMonth}
+                  onSelectYearMonth={setSelectedYearMonth}
+                  searchQuery={searchQuery}
+                  onSearchQueryChange={setSearchQuery}
+                  onDeleteNote={handleDeleteNote}
+                  onTogglePin={handleTogglePin}
+                  onUpdateNote={handleUpdateNote}
+                  onFocusQuickInput={focusQuickInput}
+                />
+              </div>
+
+              <div id="insights-section" className="lg:col-span-5 scroll-mt-20">
+                <AIInsightsAndNewsPanel
+                  notes={notes}
+                  insights={insights}
+                  news={news}
+                  groundingLinks={groundingLinks}
+                  groundedSummaryText={groundedSummaryText}
+                  activeQueryTopic={activeQueryTopic}
+                  isRefreshingInsights={isRefreshingInsights}
+                  insightsError={insightsError}
+                  hasFetchedLiveAI={hasFetchedLiveAI}
+                  onRefreshInsights={(topic) => handleRefreshInsights(topic)}
+                  onSelectTopicFilter={(topic) => setSearchQuery(topic)}
+                />
+              </div>
+            </div>
+          </>
+        )}
       </main>
 
       {/* Mobile Floating Quick Capture Trigger (Compact, well within 15% mobile sticky cap) */}

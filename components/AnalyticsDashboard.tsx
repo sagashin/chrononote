@@ -1,8 +1,15 @@
 'use client';
 
 import React, {useMemo} from 'react';
-import {BarChart3, TrendingUp, Layers, Calendar} from 'lucide-react';
-import {CATEGORIES, CategoryId, NoteEntry} from '@/lib/chrononote-data';
+import {TrendingUp, Layers, Calendar} from 'lucide-react';
+import {
+  CATEGORIES,
+  CategoryId,
+  NoteEntry,
+  getCurrentJSTDateParts,
+  getPreviousYearMonth,
+  getRecentYearMonths,
+} from '@/lib/chrononote-data';
 
 interface AnalyticsDashboardProps {
   notes: NoteEntry[];
@@ -19,6 +26,8 @@ export default function AnalyticsDashboard({
   onSelectCategory,
   onSelectYearMonth,
 }: AnalyticsDashboardProps) {
+  const currentYm = useMemo(() => getCurrentJSTDateParts().yearMonth, []);
+
   // 1. Category counts
   const categoryStats = useMemo(() => {
     const counts: Record<CategoryId, number> = {
@@ -55,14 +64,14 @@ export default function AnalyticsDashboard({
     }).sort((a, b) => b.count - a.count);
   }, [notes, selectedYearMonth]);
 
-  // 2. Monthly trend stats (last 6 months or all available months)
+  // 2. Monthly trend stats (recent 6 months merged with notes' yearMonths)
   const monthlyStats = useMemo(() => {
-    const defaultMonths = ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10'];
-    const monthSet = new Set<string>(defaultMonths);
+    const recentMonths = getRecentYearMonths(currentYm, 5);
+    const monthSet = new Set<string>(recentMonths);
     for (const n of notes) {
       if (n.yearMonth) monthSet.add(n.yearMonth);
     }
-    const sortedMonths = Array.from(monthSet).sort();
+    const sortedMonths = Array.from(monthSet).sort().slice(-6);
 
     const data = sortedMonths.map((ym) => {
       const monthNotes = notes.filter(
@@ -85,24 +94,48 @@ export default function AnalyticsDashboard({
     });
 
     const maxTotal = Math.max(...data.map((d) => d.total), 1);
-    return {data, maxTotal};
-  }, [notes, selectedCategory]);
+    const rangeLabel =
+      sortedMonths.length >= 2
+        ? `${sortedMonths[0].replace('-', '/')}〜${sortedMonths[sortedMonths.length - 1].replace('-', '/')}`
+        : `${currentYm.split('-')[0]}年`;
+
+    return {data, maxTotal, rangeLabel};
+  }, [notes, selectedCategory, currentYm]);
 
   // 3. KPI metrics
   const kpis = useMemo(() => {
-    const currentMonthNotes = notes.filter((n) => n.yearMonth === '2026-10');
+    const prevYm = getPreviousYearMonth(currentYm);
+    const currentMonthNotes = notes.filter((n) => n.yearMonth === currentYm);
+    const prevMonthNotes = notes.filter((n) => n.yearMonth === prevYm);
+
+    const currentCount = currentMonthNotes.length;
+    const prevCount = prevMonthNotes.length;
+
+    let momLabel = '前月比 —';
+    if (prevCount > 0) {
+      const diffPercent = Math.round(((currentCount - prevCount) / prevCount) * 100);
+      momLabel = `前月比 ${diffPercent >= 0 ? '+' : ''}${diffPercent}%`;
+    } else if (prevCount === 0 && currentCount > 0) {
+      momLabel = '前月0件 → 新規記録';
+    }
+
     const uniqueTags = new Set<string>();
     for (const n of notes) {
       for (const t of n.tags) uniqueTags.add(t);
     }
     const topCategory = categoryStats[0]?.count > 0 ? categoryStats[0].label : '—';
+    const [currY, currM] = currentYm.split('-');
+    const currentMonthDisplay = `${currY}年${Number(currM)}月`;
+
     return {
       totalNotes: notes.length,
-      currentMonthCount: currentMonthNotes.length,
+      currentMonthCount: currentCount,
+      currentMonthDisplay,
+      momLabel,
       topCategory,
       uniqueTagsCount: uniqueTags.size,
     };
-  }, [notes, categoryStats]);
+  }, [notes, categoryStats, currentYm]);
 
   return (
     <section aria-label="記録統計ダッシュボード" className="space-y-6">
@@ -124,14 +157,14 @@ export default function AnalyticsDashboard({
 
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-4">
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            今月（2026年10月）の記録
+            今月（{kpis.currentMonthDisplay}）の記録
           </div>
           <div className="mt-1.5 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-sky-500 dark:text-sky-400 font-mono tabular-nums">
               {kpis.currentMonthCount}
             </span>
             <span className="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">
-              前月比 +40%
+              {kpis.momLabel}
             </span>
           </div>
         </div>
@@ -229,7 +262,7 @@ export default function AnalyticsDashboard({
               <button
                 type="button"
                 onClick={() => onSelectCategory('ALL')}
-                className="text-slate-500 hover:text-slate-200 underline cursor-pointer"
+                className="text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 underline cursor-pointer"
               >
                 フィルタ解除
               </button>
@@ -248,7 +281,7 @@ export default function AnalyticsDashboard({
                 </h3>
               </div>
               <span className="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">
-                2026年
+                {monthlyStats.rangeLabel}
               </span>
             </div>
 
@@ -274,7 +307,7 @@ export default function AnalyticsDashboard({
                       className={`text-xs font-mono tabular-nums transition-colors ${
                         isSelected
                           ? 'text-sky-400 font-bold'
-                          : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-200'
+                          : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200'
                       }`}
                     >
                       {m.total}

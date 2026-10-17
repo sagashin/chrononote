@@ -1,20 +1,28 @@
 import {GoogleGenAI, Type} from '@google/genai';
 import {NextRequest, NextResponse} from 'next/server';
-import {inferCategoryAndTagsLocal} from '@/lib/chrononote-data';
+import {
+  DEFAULT_GEMINI_MODEL,
+  MAX_NOTE_LENGTH,
+  inferCategoryAndTagsLocal,
+} from '@/lib/chrononote-data';
 
 export async function POST(req: NextRequest) {
+  let rawInputText = '';
   try {
     const body = await req.json();
-    const text = typeof body?.text === 'string' ? body.text.trim() : '';
+    rawInputText =
+      typeof body?.text === 'string'
+        ? body.text.trim().slice(0, MAX_NOTE_LENGTH)
+        : '';
 
-    if (!text) {
+    if (!rawInputText) {
       return NextResponse.json(
         {error: 'テキストが空です'},
         {status: 400}
       );
     }
 
-    const fallback = inferCategoryAndTagsLocal(text);
+    const fallback = inferCategoryAndTagsLocal(rawInputText);
 
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
       return NextResponse.json({
@@ -32,9 +40,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    const modelName = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: `以下のユーザーの個人メモを分析し、最も適切な分野（仕事、アイデア、買い物、健康、学習、趣味、その他のいずれか1つ）、関連性の高い簡潔なタグ（2〜4個、#記号なし）、および1行の短いAIインサイトコメント（35文字以内）をJSONで出力してください。\n\nメモ内容: "${text}"`,
+      model: modelName,
+      contents: `以下のユーザーの個人メモを分析し、最も適切な分野（仕事、アイデア、買い物、健康、学習、趣味、その他のいずれか1つ）、関連性の高い簡潔なタグ（2〜4個、#記号なし）、および1行の短いAIインサイトコメント（35文字以内）をJSONで出力してください。\n\nメモ内容: "${rawInputText}"`,
       config: {
         responseMimeType: 'application/json',
         responseSchema: {
@@ -89,8 +99,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('Classify API error:', error);
+    const fallback = inferCategoryAndTagsLocal(rawInputText);
     return NextResponse.json(
-      {error: 'AI分類リクエストに失敗しました。ローカル推論結果を使用します。'},
+      {
+        ...fallback,
+        source: 'fallback-on-error',
+      },
       {status: 200}
     );
   }

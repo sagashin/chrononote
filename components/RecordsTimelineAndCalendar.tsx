@@ -14,7 +14,13 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import {CATEGORIES, CategoryId, NoteEntry} from '@/lib/chrononote-data';
+import {
+  CATEGORIES,
+  CategoryId,
+  NoteEntry,
+  MAX_NOTE_LENGTH,
+  getCurrentJSTDateParts,
+} from '@/lib/chrononote-data';
 
 interface RecordsTimelineAndCalendarProps {
   notes: NoteEntry[];
@@ -28,7 +34,12 @@ interface RecordsTimelineAndCalendarProps {
   onSearchQueryChange: (q: string) => void;
   onDeleteNote: (id: string) => void;
   onTogglePin: (id: string) => void;
-  onUpdateNote: (id: string, newContent: string, newCategory: CategoryId) => void;
+  onUpdateNote: (
+    id: string,
+    newContent: string,
+    newCategory: CategoryId,
+    newTags: string[]
+  ) => void;
   onFocusQuickInput: () => void;
 }
 
@@ -50,14 +61,19 @@ export default function RecordsTimelineAndCalendar({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [editCategory, setEditCategory] = useState<CategoryId>('仕事');
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [editTagInput, setEditTagInput] = useState('');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<
     string | null
   >(null);
-  const [calendarMonth, setCalendarMonth] = useState<string>('2026-10');
+  const [calendarMonth, setCalendarMonth] = useState<string>(
+    () => getCurrentJSTDateParts().yearMonth
+  );
 
-  // Available Year-Months
+  // Available Year-Months (only current JST yearMonth + actual notes' yearMonths)
   const availableYearMonths = useMemo(() => {
-    const set = new Set<string>(['2026-10', '2026-09', '2026-08', '2026-07']);
+    const currentYm = getCurrentJSTDateParts().yearMonth;
+    const set = new Set<string>([currentYm]);
     for (const n of notes) {
       if (n.yearMonth) set.add(n.yearMonth);
     }
@@ -120,27 +136,37 @@ export default function RecordsTimelineAndCalendar({
   ]);
 
   // Group filtered notes by Year-Month for Timeline view
+  // Month groups are strictly sorted by yearMonth descending, and items within each month are sorted by isPinned then createdAt descending
   const groupedByMonth = useMemo(() => {
-    const groups: {yearMonth: string; items: NoteEntry[]}[] = [];
+    const currentYm = getCurrentJSTDateParts().yearMonth;
     const map = new Map<string, NoteEntry[]>();
     for (const item of filteredNotes) {
-      const ym = item.yearMonth || '2026-10';
+      const ym = item.yearMonth || currentYm;
       if (!map.has(ym)) {
         map.set(ym, []);
       }
       map.get(ym)!.push(item);
     }
-    for (const [yearMonth, items] of map.entries()) {
-      groups.push({yearMonth, items});
-    }
-    return groups;
+    const sortedYearMonths = Array.from(map.keys()).sort((a, b) =>
+      b.localeCompare(a)
+    );
+    return sortedYearMonths.map((yearMonth) => {
+      const items = [...(map.get(yearMonth) || [])].sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return b.createdAt.localeCompare(a.createdAt);
+      });
+      return {yearMonth, items};
+    });
   }, [filteredNotes]);
 
   // Calendar grid generation for `calendarMonth`
   const calendarDays = useMemo(() => {
+    const currentYm = getCurrentJSTDateParts().yearMonth;
+    const [defaultY, defaultM] = currentYm.split('-').map(Number);
     const [yearStr, monthStr] = calendarMonth.split('-');
-    const year = Number(yearStr) || 2026;
-    const monthIndex = (Number(monthStr) || 10) - 1;
+    const year = Number(yearStr) || defaultY;
+    const monthIndex = (Number(monthStr) || defaultM) - 1;
 
     const firstDayOfWeek = new Date(year, monthIndex, 1).getDay();
     const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
@@ -182,11 +208,28 @@ export default function RecordsTimelineAndCalendar({
     setEditingId(note.id);
     setEditContent(note.content);
     setEditCategory(note.category);
+    setEditTags([...note.tags]);
+    setEditTagInput('');
+  };
+
+  const handleAddEditTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && editTagInput.trim()) {
+      e.preventDefault();
+      const cleanTag = editTagInput.trim().replace(/^[#＃]/, '');
+      if (cleanTag && !editTags.includes(cleanTag)) {
+        setEditTags((prev) => [...prev, cleanTag].slice(0, 8));
+      }
+      setEditTagInput('');
+    }
+  };
+
+  const handleRemoveEditTag = (tagToRemove: string) => {
+    setEditTags((prev) => prev.filter((t) => t !== tagToRemove));
   };
 
   const handleSaveEdit = (id: string) => {
     if (!editContent.trim()) return;
-    onUpdateNote(id, editContent.trim(), editCategory);
+    onUpdateNote(id, editContent.trim(), editCategory, editTags);
     setEditingId(null);
   };
 
@@ -196,6 +239,9 @@ export default function RecordsTimelineAndCalendar({
     const nextYm = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     setCalendarMonth(nextYm);
     setSelectedCalendarDate(null);
+    if (selectedYearMonth !== 'ALL') {
+      onSelectYearMonth(nextYm);
+    }
   };
 
   const getCategoryColorClass = (cat: CategoryId) => {
@@ -224,7 +270,7 @@ export default function RecordsTimelineAndCalendar({
               <button
                 type="button"
                 onClick={() => onSearchQueryChange('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-200 cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"
                 aria-label="検索クリア"
               >
                 <X className="w-3.5 h-3.5" />
@@ -384,8 +430,12 @@ export default function RecordsTimelineAndCalendar({
               <button
                 type="button"
                 onClick={() => {
-                  setCalendarMonth('2026-10');
+                  const currentYm = getCurrentJSTDateParts().yearMonth;
+                  setCalendarMonth(currentYm);
                   setSelectedCalendarDate(null);
+                  if (selectedYearMonth !== 'ALL') {
+                    onSelectYearMonth(currentYm);
+                  }
                 }}
                 className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap cursor-pointer"
               >
@@ -558,11 +608,40 @@ export default function RecordsTimelineAndCalendar({
                             <textarea
                               value={editContent}
                               onChange={(e) => setEditContent(e.target.value)}
+                              maxLength={MAX_NOTE_LENGTH}
                               rows={3}
                               className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:border-sky-500"
                             />
+                            {/* Tag Editing Bar */}
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {editTags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300"
+                                >
+                                  <span>#{tag}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveEditTag(tag)}
+                                    className="text-slate-400 hover:text-rose-400 cursor-pointer"
+                                    aria-label={`タグ ${tag} を削除`}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              ))}
+                              <input
+                                type="text"
+                                value={editTagInput}
+                                onChange={(e) => setEditTagInput(e.target.value)}
+                                onKeyDown={handleAddEditTag}
+                                placeholder="+タグ追加(Enter)"
+                                aria-label="編集中のメモにタグを追加"
+                                className="w-32 px-2 py-0.5 text-xs rounded border border-slate-200 dark:border-slate-700 bg-transparent text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-sky-500"
+                              />
+                            </div>
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 flex-wrap">
                                 {CATEGORIES.map((c) => (
                                   <button
                                     key={c.id}
@@ -582,7 +661,7 @@ export default function RecordsTimelineAndCalendar({
                                 <button
                                   type="button"
                                   onClick={() => setEditingId(null)}
-                                  className="px-3 py-1.5 rounded-lg text-xs text-slate-500 hover:text-slate-200 cursor-pointer"
+                                  className="px-3 py-1.5 rounded-lg text-xs text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"
                                 >
                                   キャンセル
                                 </button>
@@ -639,7 +718,7 @@ export default function RecordsTimelineAndCalendar({
                                   className={`p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer ${
                                     note.isPinned
                                       ? 'text-amber-400'
-                                      : 'text-slate-400 hover:text-slate-200'
+                                      : 'text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                                   }`}
                                   title={
                                     note.isPinned
@@ -653,7 +732,7 @@ export default function RecordsTimelineAndCalendar({
                                 <button
                                   type="button"
                                   onClick={() => handleStartEdit(note)}
-                                  className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                  className="p-1.5 rounded text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                                   title="編集"
                                   aria-label="編集"
                                 >

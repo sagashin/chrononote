@@ -253,7 +253,7 @@ export default function AIInsightsAndNewsPanel({
             className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap shrink-0 cursor-pointer ${
               selectedNewsTopic === 'ALL'
                 ? 'bg-sky-500 text-slate-950 font-semibold'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-200'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             すべて ({news.length})
@@ -270,7 +270,7 @@ export default function AIInsightsAndNewsPanel({
               className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap shrink-0 cursor-pointer ${
                 selectedNewsTopic === c.id
                   ? 'bg-sky-500 text-slate-950 font-semibold'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-200'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               {c.label}
@@ -336,7 +336,7 @@ export default function AIInsightsAndNewsPanel({
                   <span className="text-slate-400 dark:text-slate-500 truncate max-w-[65%]">
                     情報源: {item.sourceName}
                   </span>
-                  {item.url && (
+                  {item.url && /^https?:\/\//i.test(item.url) && (
                     <a
                       href={item.url}
                       target="_blank"
@@ -354,24 +354,26 @@ export default function AIInsightsAndNewsPanel({
         )}
 
         {/* Grounding Web Source Citations */}
-        {groundingLinks.length > 0 && (
+        {groundingLinks.filter((link) => /^https?:\/\//i.test(link.uri)).length > 0 && (
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
             <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Google検索グラウンディング参照元リンク ({groundingLinks.length}件):
+              Google検索グラウンディング参照元リンク ({groundingLinks.filter((link) => /^https?:\/\//i.test(link.uri)).length}件):
             </div>
             <div className="flex flex-col gap-1.5">
-              {groundingLinks.map((link, i) => (
-                <a
-                  key={i}
-                  href={link.uri}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-sky-400 hover:underline flex items-center gap-1.5 truncate"
-                >
-                  <ExternalLink className="w-3 h-3 shrink-0" />
-                  <span className="truncate">{link.title}</span>
-                </a>
-              ))}
+              {groundingLinks
+                .filter((link) => /^https?:\/\//i.test(link.uri))
+                .map((link, i) => (
+                  <a
+                    key={i}
+                    href={link.uri}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-sky-400 hover:underline flex items-center gap-1.5 truncate"
+                  >
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{link.title}</span>
+                  </a>
+                ))}
             </div>
           </div>
         )}

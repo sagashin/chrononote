@@ -15,6 +15,8 @@ import {
 import {
   CATEGORIES,
   CategoryId,
+  MAX_NOTE_LENGTH,
+  getCurrentJSTDateParts,
   inferCategoryAndTagsLocal,
 } from '@/lib/chrononote-data';
 
@@ -90,19 +92,13 @@ export default function QuickCaptureBar({
   const [manualCategory, setManualCategory] = useState<CategoryId | null>(null);
   const [customTagInput, setCustomTagInput] = useState('');
   const [extraTags, setExtraTags] = useState<string[]>([]);
-  const [currentTimeStr, setCurrentTimeStr] = useState('2026-10-16 22:06');
+  const [currentTimeStr, setCurrentTimeStr] = useState('');
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   useEffect(() => {
     const updateClock = () => {
-      const now = new Date();
-      const pad = (n: number) => String(n).padStart(2, '0');
-      setCurrentTimeStr(
-        `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(
-          now.getHours()
-        )}:${pad(now.getMinutes())}`
-      );
+      setCurrentTimeStr(getCurrentJSTDateParts().fullDateTime);
     };
     updateClock();
     const timer = setInterval(updateClock, 15000);
@@ -298,7 +294,7 @@ export default function QuickCaptureBar({
           </h2>
           <span className="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-sky-500" />
-            {currentTimeStr} 自動付与
+            {currentTimeStr ? `${currentTimeStr} 自動付与` : '日時自動付与'}
           </span>
         </div>
 
@@ -336,7 +332,7 @@ export default function QuickCaptureBar({
           <button
             type="button"
             onClick={() => setSpeechError(null)}
-            className="text-xs text-slate-400 hover:text-slate-200 whitespace-nowrap cursor-pointer"
+            className="text-xs text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 whitespace-nowrap cursor-pointer"
           >
             閉じる
           </button>
@@ -350,6 +346,7 @@ export default function QuickCaptureBar({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={handleKeyDown}
+            maxLength={MAX_NOTE_LENGTH}
             rows={3}
             placeholder={
               isListening
@@ -464,7 +461,7 @@ export default function QuickCaptureBar({
               <button
                 type="button"
                 onClick={() => setManualCategory(null)}
-                className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
+                className="text-xs text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
                 title="AI自動推測に戻す"
               >
                 <RotateCcw className="w-3 h-3" />

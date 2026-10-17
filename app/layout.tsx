@@ -46,7 +46,7 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
       suppressHydrationWarning
     >
       <body
-        className="bg-slate-950 text-slate-100 antialiased selection:bg-sky-500/30 selection:text-sky-200"
+        className="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-sky-500/30 selection:text-sky-700 dark:selection:text-sky-200"
         style={{
           fontFamily: 'var(--font-display), var(--font-sans), sans-serif',
         }}

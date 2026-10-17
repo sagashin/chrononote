@@ -5,6 +5,8 @@ import {
   CategoryId,
   RelatedNewsItem,
   AIInsightSummary,
+  DEFAULT_GEMINI_MODEL,
+  getCurrentJSTDateParts,
 } from '@/lib/chrononote-data';
 
 const VALID_CATEGORIES: CategoryId[] = [
@@ -16,14 +18,6 @@ const VALID_CATEGORIES: CategoryId[] = [
   '趣味',
   'その他',
 ];
-
-function formatNowJST(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(
-    now.getHours()
-  )}:${pad(now.getMinutes())}`;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -58,6 +52,8 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+
+    const modelName = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
 
     const recentNotesSample = notes
       .slice(0, 25)
@@ -95,7 +91,7 @@ export async function POST(req: NextRequest) {
 
     // 1. Call Gemini for Personal Interest Trend Analysis (Structured JSON)
     const insightsPromise = ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: modelName,
       contents: `以下はユーザーが実際に記録・保存しているパーソナルメモの一覧（最新順）です。
 ${focusTopic ? `特に「${focusTopic}」に関する関心も含めて、` : ''}現在保存されているメモの内容・日付・タグ・分野の傾向を深く分析し、ユーザーの「最近の関心トレンド要約」「主要3テーマ」「具体的なネクストアクション提案」をJSON形式で出力してください。
 
@@ -156,7 +152,7 @@ ${recentNotesSample}`,
 
     // 2. Call Gemini with Google Search Grounding for Real Web News related to the user's notes
     const groundedNewsPromise = ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: modelName,
       contents: `ユーザーの保存メモから抽出された関心トピック「${queryTopic}」および以下のメモ内容に関連する最新のWebニュース・技術動向・トレンド記事をGoogle検索で調べ、実際の最新ニュース4件と全体要約を日本語で出力してください。
 
 【ユーザーの最近のメモ抜粋】
@@ -193,7 +189,7 @@ ${notes
     // Parse Insights
     const insightsRaw = insightsRes.text?.trim() || '{}';
     const parsedInsights = JSON.parse(insightsRaw);
-    const updatedAt = formatNowJST();
+    const updatedAt = getCurrentJSTDateParts().fullDateTime;
 
     const insights: AIInsightSummary = {
       updatedAt,
@@ -233,15 +229,19 @@ ${notes
       }
     }
 
-    // Parse Grounded News Text (handling possible markdown code blocks)
+    // Parse Grounded News Text (2-stage parsing: prioritize ```json ... ``` fenced block, then fallback to {[\s\S]*})
     const rawNewsText = newsRes.text?.trim() || '';
     let groundedSummaryText = '';
     let parsedNewsList: RelatedNewsItem[] = [];
 
     try {
-      const jsonMatch = rawNewsText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const newsObj = JSON.parse(jsonMatch[0]);
+      const codeBlockMatch = rawNewsText.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      const rawJsonCandidate = codeBlockMatch
+        ? codeBlockMatch[1].trim()
+        : rawNewsText.match(/\{[\s\S]*\}/)?.[0] || '';
+
+      if (rawJsonCandidate) {
+        const newsObj = JSON.parse(rawJsonCandidate);
         if (typeof newsObj.groundedSummary === 'string') {
           groundedSummaryText = newsObj.groundedSummary;
         }
@@ -254,7 +254,7 @@ ${notes
                 ? (item.category as CategoryId)
                 : '学習';
               const rawUrl =
-                typeof item.url === 'string' && item.url.startsWith('http')
+                typeof item.url === 'string' && /^https?:\/\//i.test(item.url)
                   ? item.url
                   : matchedGrounding?.uri;
               return {
