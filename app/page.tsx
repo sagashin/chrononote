@@ -496,19 +496,19 @@ export default function ChronoNotePage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors pb-20 md:pb-12">
       {/* Top Bar Contract: Strictly 3 zones separated by gap-8 */}
       <header className="sticky top-0 z-30 border-b border-slate-200 dark:border-slate-800/90 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md">
-        <div className="max-w-[1360px] mx-auto flex items-center justify-between gap-8 px-4 sm:px-6 py-3.5">
+        <div className="max-w-[1360px] mx-auto flex flex-wrap items-center justify-between gap-x-8 gap-y-2.5 px-4 sm:px-6 py-3 md:py-3.5">
           {/* Zone 1: Brand Wordmark (single text element) */}
           <a
             href="#top"
-            className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap shrink-0"
+            className="order-1 text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap shrink-0"
           >
             ChronoNote
           </a>
 
-          {/* Zone 2: 4 Single-line Navigation Links */}
+          {/* Zone 2: 4 Single-line Navigation Links (visible on both mobile and desktop) */}
           <nav
             aria-label="メインナビゲーション"
-            className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-400"
+            className="order-3 md:order-2 w-full md:w-auto flex items-center justify-between sm:justify-start gap-4 sm:gap-6 pt-2 md:pt-0 border-t border-slate-200/70 dark:border-slate-800/70 md:border-t-0 text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 overflow-x-auto"
           >
             <a
               href="#records-section"
@@ -516,7 +516,7 @@ export default function ChronoNotePage() {
                 setActiveNavTab('timeline');
                 setViewMode('timeline');
               }}
-              className={`hover:text-slate-900 dark:hover:text-slate-100 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 ${
+              className={`hover:text-slate-900 dark:hover:text-slate-100 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 py-0.5 ${
                 activeNavTab === 'timeline'
                   ? 'text-sky-500 dark:text-sky-400 font-semibold'
                   : ''
@@ -530,7 +530,7 @@ export default function ChronoNotePage() {
                 setActiveNavTab('calendar');
                 setViewMode('calendar');
               }}
-              className={`hover:text-slate-900 dark:hover:text-slate-100 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 ${
+              className={`hover:text-slate-900 dark:hover:text-slate-100 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 py-0.5 ${
                 activeNavTab === 'calendar'
                   ? 'text-sky-500 dark:text-sky-400 font-semibold'
                   : ''
@@ -541,7 +541,7 @@ export default function ChronoNotePage() {
             <a
               href="#dashboard-section"
               onClick={() => setActiveNavTab('dashboard')}
-              className={`hover:text-slate-900 dark:hover:text-slate-100 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 ${
+              className={`hover:text-slate-900 dark:hover:text-slate-100 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 py-0.5 ${
                 activeNavTab === 'dashboard'
                   ? 'text-sky-500 dark:text-sky-400 font-semibold'
                   : ''
@@ -552,7 +552,7 @@ export default function ChronoNotePage() {
             <button
               type="button"
               onClick={handleOpenInsightsTab}
-              className={`hover:text-slate-900 dark:hover:text-slate-100 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`hover:text-slate-900 dark:hover:text-slate-100 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer py-0.5 ${
                 activeNavTab === 'insights'
                   ? 'text-sky-500 dark:text-sky-400 font-semibold'
                   : ''
@@ -563,11 +563,11 @@ export default function ChronoNotePage() {
           </nav>
 
           {/* Zone 3: 1 Primary Action Button */}
-          <div className="flex items-center shrink-0">
+          <div className="order-2 md:order-3 flex items-center shrink-0">
             <button
               type="button"
               onClick={focusQuickInput}
-              className="px-4 py-2 text-xs font-semibold text-slate-950 bg-sky-500 hover:bg-sky-400 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="px-3.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold text-slate-950 bg-sky-500 hover:bg-sky-400 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               クイック記録 (⌘K)
             </button>
@@ -766,7 +766,7 @@ export default function ChronoNotePage() {
         ) : (
           <>
             {/* Section 2: Analytics Dashboard (Category Breakdown & Monthly Trend Charts) */}
-            <div id="dashboard-section" className="scroll-mt-20">
+            <div id="dashboard-section" className="scroll-mt-28 md:scroll-mt-20">
               <AnalyticsDashboard
                 notes={notes}
                 selectedCategory={selectedCategory}
@@ -778,7 +778,7 @@ export default function ChronoNotePage() {
 
             {/* Section 3 & 4: Main 2-Column Workspace (Left: Filterable Records Timeline/Calendar, Right: AI Insights & Related News) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              <div id="records-section" className="lg:col-span-7 scroll-mt-20">
+              <div id="records-section" className="lg:col-span-7 scroll-mt-28 md:scroll-mt-20">
                 <RecordsTimelineAndCalendar
                   notes={notes}
                   viewMode={viewMode}
@@ -796,7 +796,7 @@ export default function ChronoNotePage() {
                 />
               </div>
 
-              <div id="insights-section" className="lg:col-span-5 scroll-mt-20">
+              <div id="insights-section" className="lg:col-span-5 scroll-mt-28 md:scroll-mt-20">
                 <AIInsightsAndNewsPanel
                   notes={notes}
                   insights={insights}
