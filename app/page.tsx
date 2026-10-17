@@ -10,6 +10,7 @@ import {
   Plus,
   CheckCircle2,
   Upload,
+  Trash2,
 } from 'lucide-react';
 import {
   CategoryId,
@@ -30,6 +31,16 @@ const STORAGE_KEY_NOTES = 'chrononote_entries_v1';
 const STORAGE_KEY_INSIGHTS = 'chrononote_insights_v1';
 const STORAGE_KEY_NEWS = 'chrononote_news_v1';
 const STORAGE_KEY_THEME = 'chrononote_theme_v1';
+
+const EMPTY_INSIGHTS: AIInsightSummary = {
+  updatedAt: '未解析',
+  headline: '記録データがまだありません',
+  overview:
+    '上のクイック記録エリアから日々のメモやアイデアを追加すると、Gemini APIが関心トレンドや分野間のつながりを自動分析します。',
+  keyThemes: [],
+  actionSuggestion:
+    'まずは最初のメモを記録し、「AIトレンド＆ニュース分析」ボタンを押してみてください。',
+};
 
 export default function ChronoNotePage() {
   const [notes, setNotes] = useState<NoteEntry[]>(INITIAL_NOTES);
@@ -64,6 +75,7 @@ export default function ChronoNotePage() {
   const [isRefreshingInsights, setIsRefreshingInsights] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   const quickInputRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -79,25 +91,25 @@ export default function ChronoNotePage() {
   useEffect(() => {
     try {
       const savedNotes = localStorage.getItem(STORAGE_KEY_NOTES);
-      if (savedNotes) {
+      if (savedNotes !== null) {
         const parsed = JSON.parse(savedNotes);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setNotes(parsed);
         }
       }
 
       const savedInsights = localStorage.getItem(STORAGE_KEY_INSIGHTS);
-      if (savedInsights) {
+      if (savedInsights !== null) {
         const parsedIns = JSON.parse(savedInsights);
-        if (parsedIns && parsedIns.headline) {
+        if (parsedIns && typeof parsedIns.headline === 'string') {
           setInsights(parsedIns);
         }
       }
 
       const savedNews = localStorage.getItem(STORAGE_KEY_NEWS);
-      if (savedNews) {
+      if (savedNews !== null) {
         const parsedNews = JSON.parse(savedNews);
-        if (Array.isArray(parsedNews) && parsedNews.length > 0) {
+        if (Array.isArray(parsedNews)) {
           setNews(parsedNews);
         }
       }
@@ -446,18 +458,37 @@ export default function ChronoNotePage() {
     setNews(INITIAL_NEWS);
     setGroundingLinks([]);
     setGroundedSummaryText('');
+    setActiveQueryTopic('');
     setHasFetchedLiveAI(false);
     localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(INITIAL_NOTES));
     localStorage.setItem(
       STORAGE_KEY_INSIGHTS,
       JSON.stringify(INITIAL_INSIGHTS)
     );
-    localStorage.removeItem(STORAGE_KEY_NEWS);
+    localStorage.setItem(STORAGE_KEY_NEWS, JSON.stringify(INITIAL_NEWS));
     setSelectedCategory('ALL');
     setSelectedYearMonth('ALL');
     setSearchQuery('');
     setConfirmResetOpen(false);
     showToast('初期サンプルデータを復元しました');
+  };
+
+  const handleClearAllData = () => {
+    setNotes([]);
+    setInsights(EMPTY_INSIGHTS);
+    setNews([]);
+    setGroundingLinks([]);
+    setGroundedSummaryText('');
+    setActiveQueryTopic('');
+    setHasFetchedLiveAI(false);
+    localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEY_INSIGHTS, JSON.stringify(EMPTY_INSIGHTS));
+    localStorage.setItem(STORAGE_KEY_NEWS, JSON.stringify([]));
+    setSelectedCategory('ALL');
+    setSelectedYearMonth('ALL');
+    setSearchQuery('');
+    setConfirmClearOpen(false);
+    showToast('すべてのデータを削除し、クリーンな状態にしました');
   };
 
   return (
@@ -607,7 +638,10 @@ export default function ChronoNotePage() {
             {!confirmResetOpen ? (
               <button
                 type="button"
-                onClick={() => setConfirmResetOpen(true)}
+                onClick={() => {
+                  setConfirmClearOpen(false);
+                  setConfirmResetOpen(true);
+                }}
                 className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -628,6 +662,40 @@ export default function ChronoNotePage() {
                 <button
                   type="button"
                   onClick={() => setConfirmResetOpen(false)}
+                  className="px-2 py-0.5 text-xs text-slate-400 hover:text-slate-200 cursor-pointer"
+                >
+                  取消
+                </button>
+              </div>
+            )}
+
+            {!confirmClearOpen ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmResetOpen(false);
+                  setConfirmClearOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-rose-500/10 hover:border-rose-500/40 text-xs font-medium text-rose-500 dark:text-rose-400 flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>全データクリア</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-rose-500/40">
+                <span className="text-xs text-rose-400 whitespace-nowrap">
+                  全データを削除しますか？
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClearAllData}
+                  className="px-2 py-0.5 rounded bg-rose-500 text-white text-xs font-semibold cursor-pointer"
+                >
+                  全削除
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmClearOpen(false)}
                   className="px-2 py-0.5 text-xs text-slate-400 hover:text-slate-200 cursor-pointer"
                 >
                   取消
