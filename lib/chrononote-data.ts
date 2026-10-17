@@ -121,7 +121,7 @@ export interface RelatedNewsItem {
   url?: string;
 }
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
 export const MAX_NOTE_LENGTH = 3000;
 
 export function getCurrentJSTDateParts(date: Date = new Date()): {
