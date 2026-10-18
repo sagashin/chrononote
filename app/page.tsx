@@ -146,8 +146,8 @@ export default function ChronoNotePage() {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        quickInputRef.current?.focus();
-        window.scrollTo({top: 0, behavior: 'smooth'});
+        quickInputRef.current?.focus({ preventScroll: true });
+        quickInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -247,10 +247,13 @@ export default function ChronoNotePage() {
   };
 
   const focusQuickInput = () => {
-    window.scrollTo({top: 0, behavior: 'smooth'});
-    setTimeout(() => {
-      quickInputRef.current?.focus();
-    }, 100);
+    if (quickInputRef.current) {
+      // モバイルでキーボードを確実に開きつつスクロール競合を防ぐため、同期的にfocus(preventScroll)してからスクロールする
+      quickInputRef.current.focus({ preventScroll: true });
+      quickInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // Add new note with instant local save + background Gemini classification enrichment

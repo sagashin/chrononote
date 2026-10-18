@@ -264,7 +264,7 @@ export default function RecordsTimelineAndCalendar({
               onChange={(e) => onSearchQueryChange(e.target.value)}
               placeholder="キーワード・#タグ・AIメモで瞬時に検索..."
               aria-label="記録をキーワード検索"
-              className="w-full pl-10 pr-9 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 transition-colors"
+              className="w-full pl-10 pr-9 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-base sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-sky-500 transition-colors"
             />
             {searchQuery && (
               <button
@@ -291,7 +291,7 @@ export default function RecordsTimelineAndCalendar({
                 setSelectedCalendarDate(null);
               }}
               aria-label="年月で絞り込み"
-              className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs sm:text-sm font-mono tabular-nums text-slate-800 dark:text-slate-200 focus:outline-none focus:border-sky-500 cursor-pointer"
+              className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-base sm:text-sm font-mono tabular-nums text-slate-800 dark:text-slate-200 focus:outline-none focus:border-sky-500 cursor-pointer"
             >
               <option value="ALL">全期間 ({notes.length}件)</option>
               {availableYearMonths.map((ym) => {
@@ -610,7 +610,7 @@ export default function RecordsTimelineAndCalendar({
                               onChange={(e) => setEditContent(e.target.value)}
                               maxLength={MAX_NOTE_LENGTH}
                               rows={3}
-                              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:border-sky-500"
+                              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3 text-base sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:border-sky-500"
                             />
                             {/* Tag Editing Bar */}
                             <div className="flex flex-wrap items-center gap-1.5">
@@ -637,7 +637,7 @@ export default function RecordsTimelineAndCalendar({
                                 onKeyDown={handleAddEditTag}
                                 placeholder="+タグ追加(Enter)"
                                 aria-label="編集中のメモにタグを追加"
-                                className="w-32 px-2 py-0.5 text-xs rounded border border-slate-200 dark:border-slate-700 bg-transparent text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-sky-500"
+                                className="w-32 px-2 py-0.5 text-base sm:text-sm rounded border border-slate-200 dark:border-slate-700 bg-transparent text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-sky-500"
                               />
                             </div>
                             <div className="flex flex-wrap items-center justify-between gap-2">

@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import {Plus_Jakarta_Sans, Noto_Sans_JP, JetBrains_Mono} from 'next/font/google';
 import './globals.css';
 
@@ -19,6 +19,14 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ['400', '500', '600'],
   variable: '--font-mono',
 });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  interactiveWidget: 'resizes-content',
+};
 
 export const metadata: Metadata = {
   title: 'ChronoNote — パーソナル記録＆AIトレンド分析',

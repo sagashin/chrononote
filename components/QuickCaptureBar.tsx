@@ -353,7 +353,7 @@ export default function QuickCaptureBar({
                 ? 'マイクに向かってお話しください... リアルタイムで文字起こしされます'
                 : '思いついたアイデア、仕事のタスク、学んだこと、買いたいものを1秒でメモ...（マイク音声入力・#タグ自動抽出・⌘+Enterで即保存）'
             }
-            className={`w-full rounded-lg border px-4 py-3 pr-28 text-sm sm:text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all resize-none leading-relaxed ${
+            className={`w-full rounded-lg border px-4 py-3 pr-28 text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all resize-none leading-relaxed ${
               isListening
                 ? 'border-rose-500/70 bg-rose-500/5 focus:ring-rose-500/50 focus:border-rose-500'
                 : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 focus:ring-sky-500/60 focus:border-sky-500'
@@ -488,7 +488,7 @@ export default function QuickCaptureBar({
                 onKeyDown={handleAddCustomTag}
                 placeholder="+タグ追加(Enter)"
                 aria-label="カスタムタグを追加"
-                className="w-28 px-2 py-1 text-xs rounded border border-slate-200 dark:border-slate-800 bg-transparent text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-sky-500"
+                className="w-36 sm:w-28 px-2 py-1 text-base sm:text-xs rounded border border-slate-200 dark:border-slate-800 bg-transparent text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-sky-500"
               />
             </div>
 

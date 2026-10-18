@@ -1,3 +1,20 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+@layer base {
+  html,
+  body {
+    overflow-x: clip;
+    width: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* スマホ画面（768px未満）ではすべての入力要素を16px以上に保ち、キーボード表示時の自動ズームを完全に防ぐ */
+  @media screen and (max-width: 767px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+}
