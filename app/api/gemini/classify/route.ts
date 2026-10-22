@@ -40,39 +40,50 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const modelName = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+    const primaryModel = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+    const candidateModels = Array.from(
+      new Set([primaryModel, 'gemini-3.5-flash', 'gemini-3.5-flash-lite'])
+    );
 
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: `以下のユーザーの個人メモを分析し、最も適切な分野（仕事、アイデア、買い物、健康、学習、趣味、その他のいずれか1つ）、関連性の高い簡潔なタグ（2〜4個、#記号なし）、および1行の短いAIインサイトコメント（35文字以内）をJSONで出力してください。\n\nメモ内容: "${rawInputText}"`,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            category: {
-              type: Type.STRING,
-              description:
-                '仕事、アイデア、買い物、健康、学習、趣味、その他 のいずれか1つ',
-            },
-            tags: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.STRING,
+    let rawText: string | undefined;
+    for (const modelName of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: `以下のユーザーの個人メモを分析し、最も適切な分野（仕事、アイデア、買い物、健康、学習、趣味、その他のいずれか1つ）、関連性の高い簡潔なタグ（2〜4個、#記号なし）、および1行の短いAIインサイトコメント（35文字以内）をJSONで出力してください。\n\nメモ内容: "${rawInputText}"`,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                category: {
+                  type: Type.STRING,
+                  description:
+                    '仕事、アイデア、買い物、健康、学習、趣味、その他 のいずれか1つ',
+                },
+                tags: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.STRING,
+                  },
+                  description: '2〜4個の短い日本語タグ（#を含めない）',
+                },
+                aiNote: {
+                  type: Type.STRING,
+                  description: 'メモに対する具体的で役立つ1行のインサイトや次の一手（35文字以内）',
+                },
               },
-              description: '2〜4個の短い日本語タグ（#を含めない）',
-            },
-            aiNote: {
-              type: Type.STRING,
-              description: 'メモに対する具体的で役立つ1行のインサイトや次の一手（35文字以内）',
+              required: ['category', 'tags', 'aiNote'],
             },
           },
-          required: ['category', 'tags', 'aiNote'],
-        },
-      },
-    });
+        });
+        rawText = response.text?.trim();
+        if (rawText) break;
+      } catch (err) {
+        console.warn(`Classify with model ${modelName} failed, trying fallback:`, err);
+      }
+    }
 
-    const rawText = response.text?.trim();
     if (!rawText) {
       return NextResponse.json({...fallback, source: 'fallback'});
     }
